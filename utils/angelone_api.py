@@ -11,12 +11,13 @@ from dateutil import parser
 from threading import Event
 
 class AngelOneClient:
-    def __init__(self, config, strategy):
+    def __init__(self, config, strategy, ltp_manager=None):
         self.config = config
         self.strategy_name = strategy['name']
         self.smartapi = LoginManager.get_client(config)
         self.symbolDf = None
         self.spotSymInfo = None
+        self.ltp_manager = ltp_manager
 
     def _log(self, level, message):
         log_prefix = f"[{self.config['username']} | {self.strategy_name}]"
@@ -58,16 +59,17 @@ class AngelOneClient:
         self._log('info', f"Using expiry: {self.symbolDf}")
 
     def get_ltp(self, exchange, symbol, token):
+        if self.ltp_manager:
+            cached = self.ltp_manager.get_cached_ltp(token)
+            if cached is not None:
+                return cached
         try:
             response = self.smartapi.ltpData(exchange, symbol, token)
-            ltp = response['data']['ltp']
-            return ltp
-        except requests.exceptions.RequestException as e:
-            self._log('warning', f"LTP fetch failed for {symbol}: {e}")
-            return None
+            return response['data']['ltp']
         except Exception as e:
-            self._log('error', f"Unexpected error in get_ltp for {symbol}: {e}")
+            self._log('error', f"LTP fetch failed for {symbol}: {e}")
             return None
+
 
     @staticmethod
     def round_up_to_tick(price, tick_size=0.05):
@@ -281,6 +283,11 @@ class AngelOneClient:
                     self._log('info', f"Switched to static SL for {symbol} - Static SL Price: {static_sl_price}")
                 except Exception as e:
                     self._log('error', f"Error switching to static SL for {symbol}: {e}")
+            
+            # ✅ Exit loop if no reentry is allowed and position is closed
+            if not is_position_open and (has_reentered or static_exit_no_reentry):
+                self._log('info', f"SL exit complete and re-entry not expected for {symbol}. Exiting monitor.")
+                break
 
             time.sleep(3)
 
@@ -348,5 +355,11 @@ class AngelOneClient:
                     self._log('info', f"[StaticOnly] Switched to STATIC SL for {symbol} - Static SL Price: {static_sl_price}")
                 except Exception as e:
                     self._log('error', f"[StaticOnly] Error switching to STATIC SL for {symbol}: {e}")
+
+            # ✅ Exit once position is closed
+            if not is_position_open:
+                self._log('info', f"[StaticOnly] Position closed for {symbol}. Stopping monitor.")
+                break
+
 
             time.sleep(3)

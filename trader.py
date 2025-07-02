@@ -9,13 +9,16 @@ from logger import logger
 from utils.login_manager import LoginManager
 
 class Trader(threading.Thread):
-    def __init__(self, user_config, strategy):
+    def __init__(self, user_config, strategy, ltp_manager):
         threading.Thread.__init__(self)
-        self.client = AngelOneClient(user_config, strategy)
         self.config = user_config
         self.strategy = strategy
-        self.smartapi = LoginManager.get_client(user_config)
         self.strategy_name = strategy['name']
+        self.smartapi = LoginManager.get_client(user_config)
+        self.ltp_manager = ltp_manager
+        self.client = AngelOneClient(user_config, strategy, ltp_manager)
+
+
 
     def run(self):
         try:
@@ -50,8 +53,20 @@ class Trader(threading.Thread):
             logger.info(f"[{self.config['username']}][{self.strategy_name}] CE STRIKE: {ce_strike}")
             logger.info(f"[{self.config['username']}][{self.strategy_name}] PE STRIKE: {pe_strike}")
 
-            ce = self.client.symbolDf[(self.client.symbolDf.strike == ce_strike* 100) & (self.client.symbolDf.symbol.str.endswith('CE'))].iloc[0]
-            pe = self.client.symbolDf[(self.client.symbolDf.strike == pe_strike* 100) & (self.client.symbolDf.symbol.str.endswith('PE'))].iloc[0]
+            ce_match = self.client.symbolDf[
+                (self.client.symbolDf.strike == ce_strike * 100) & (self.client.symbolDf.symbol.str.endswith('CE'))
+            ]
+            if ce_match.empty:
+                raise ValueError(f"CE symbol not found for strike {ce_strike}")
+
+            pe_match = self.client.symbolDf[
+                (self.client.symbolDf.strike == pe_strike * 100) & (self.client.symbolDf.symbol.str.endswith('PE'))
+            ]
+            if pe_match.empty:
+                raise ValueError(f"PE symbol not found for strike {pe_strike}")
+
+            ce = ce_match.iloc[0]
+            pe = pe_match.iloc[0]
 
             ce_order_id = self.client.place_order(ce['token'], ce['symbol'], self.strategy['lot'] * int(ce['lotsize']), 'SELL')
             pe_order_id = self.client.place_order(pe['token'], pe['symbol'], self.strategy['lot'] * int(pe['lotsize']), 'SELL')
@@ -96,6 +111,10 @@ class Trader(threading.Thread):
                 "with_reentry": self.client.monitor_sl_with_reentry_and_static_sl,
                 "without_reentry": self.client.monitor_sl_static_only
             }.get(self.strategy.get("sl_monitoring_type", "with_reentry"))
+
+            self.ltp_manager.register_token(ce['token'], ce['symbol'], 'BFO')
+            self.ltp_manager.register_token(pe['token'], pe['symbol'], 'BFO')
+
 
             threads = []
             if ce_price > 0:

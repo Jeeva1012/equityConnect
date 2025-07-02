@@ -30,9 +30,9 @@ STRATEGIES = [
         "type": "strangle",
         "symbol": "SENSEX",
         "sl_monitoring_type": "without_reentry",
-        "start_time": (14, 6, 0),
+        "start_time": (11, 2, 0),
         "end_time": (14, 59, 0),
-        "sl": 5,
+        "sl": 25,
         "sl_limit": 1,
         "lot": 1,
         "otm": 1
@@ -42,22 +42,22 @@ STRATEGIES = [
         "type": "straddle",
         "symbol": "SENSEX",
         "sl_monitoring_type": "with_reentry",
-        "start_time": (9, 35, 0),
+        "start_time": (11, 2, 0),
         "end_time": (14, 59, 0),
-        "sl": 40,
+        "sl": 20,
         "sl_limit": 1,
         "lot": 1
     },
-       {
-        "name": "Strangle-S2",
-        "type": "strangle",
-        "symbol": "SENSEX",
-        "sl_monitoring_type": "without_reentry",
-        "start_time": (9, 18, 0),
-        "end_time": (15, 14, 0),
-        "sl": 77,
-        "sl_limit": 1,
-        "lot": 1,
-        "otm": 1
-    },
+    #    {
+    #     "name": "Strangle-S2",
+    #     "type": "strangle",
+    #     "symbol": "SENSEX",
+    #     "sl_monitoring_type": "without_reentry",
+    #     "start_time": (9, 18, 0),
+    #     "end_time": (15, 14, 0),
+    #     "sl": 77,
+    #     "sl_limit": 1,
+    #     "lot": 1,
+    #     "otm": 1
+    # },
 ]
